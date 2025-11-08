@@ -377,6 +377,16 @@
             <h2>Test RCE Engine</h2>
             <form id="testForm" onsubmit="runTest(event)">
                 <div class="form-group">
+                    <label for="backendUrl">Backend API URL</label>
+                    <input type="text" id="backendUrl" name="backendUrl"
+                           value="https://YOUR-BACKEND-URL.onrender.com"
+                           placeholder="https://your-backend.onrender.com"
+                           style="width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 5px; font-size: 14px;">
+                    <small style="color: #6b7280; display: block; margin-top: 5px;">
+                        Enter your deployed backend URL (use HTTPS for GitHub Pages compatibility)
+                    </small>
+                </div>
+                <div class="form-group">
                     <label for="domain">Domain</label>
                     <select id="domain" name="domain">
                         <option value="general">General</option>
@@ -436,14 +446,6 @@
     </div>
 
     <script>
-        // ============================================================================
-        // CONFIGURATION: Backend API URL
-        // ============================================================================
-        // IMPORTANT: Deploy your backend to Render.com first, then update this URL
-        // For now, this will show an error until you deploy the backend
-        const API_BASE_URL = 'https://YOUR-BACKEND-URL.onrender.com';  // UPDATE THIS after deploying
-        // Example: const API_BASE_URL = 'https://rce-backend-abc123.onrender.com';
-
         let currentResult = null;
         let currentTab = 'steps';
 
@@ -465,6 +467,7 @@
 
             const query = document.getElementById('query').value;
             const domain = document.getElementById('domain').value;
+            const backendUrl = document.getElementById('backendUrl').value.trim();
 
             // Reset UI
             document.getElementById('loading').classList.add('show');
@@ -475,14 +478,12 @@
             document.getElementById('submitBtn').disabled = true;
 
             try {
-                const response = await fetch(`${API_BASE_URL}/admin/test`, {
+                const response = await fetch(`${backendUrl}/api/query`, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Basic ' + btoa('admin:rce2024')  // Same credentials
+                        'Content-Type': 'application/json'
                     },
-                    credentials: 'include',
-                    body: JSON.stringify({ query, domain, format: 'detailed' })
+                    body: JSON.stringify({ query, domain })
                 });
 
                 const data = await response.json();
