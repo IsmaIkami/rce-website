@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RCE Admin Panel - Enhanced</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 20px 30px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            color: #667eea;
+            font-size: 24px;
+        }
+
+        .logout-btn {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .test-section {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .test-section h2 {
+            color: #1f2937;
+            margin-bottom: 20px;
+            font-size: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            color: #4b5563;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 5px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        .form-group textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .submit-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            flex: 1;
+        }
+
+        .submit-btn:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+
+        .download-btn {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            display: none;
+        }
+
+        .download-btn.show {
+            display: block;
+        }
+
+        /* Pipeline Visualization */
+        .pipeline-section {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .pipeline-section.show {
+            display: block;
+        }
+
+        .pipeline-steps {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .pipeline-step {
+            background: #f9fafb;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            position: relative;
+        }
+
+        .pipeline-step.active {
+            background: #eff6ff;
+            border-left-color: #10b981;
+        }
+
+        .pipeline-step .step-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .pipeline-step h3 {
+            color: #1f2937;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .pipeline-step .step-status {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .step-status.completed {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .step-status.processing {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .step-data {
+            font-size: 13px;
+            color: #4b5563;
+            line-height: 1.6;
+        }
+
+        .step-data pre {
+            background: white;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            margin-top: 10px;
+            font-size: 12px;
+        }
+
+        /* Results Section */
+        .results-section {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .results-section.show {
+            display: block;
+        }
+
+        .result-answer {
+            background: #f0fdf4;
+            border: 2px solid #10b981;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .result-answer h3 {
+            color: #065f46;
+            margin-bottom: 10px;
+        }
+
+        .result-answer p {
+            color: #1f2937;
+            line-height: 1.6;
+            font-size: 15px;
+        }
+
+        .result-metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .metric-box {
+            background: #f9fafb;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .metric-box .label {
+            color: #6b7280;
+            font-size: 12px;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+        }
+
+        .metric-box .value {
+            color: #667eea;
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .sources-section {
+            background: #fef3c7;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .sources-section h3 {
+            color: #92400e;
+            margin-bottom: 15px;
+        }
+
+        .source-item {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 10px;
+        }
+
+        .source-item .source-title {
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 5px;
+        }
+
+        .source-item .source-snippet {
+            color: #4b5563;
+            font-size: 13px;
+            line-height: 1.5;
+            margin-bottom: 8px;
+        }
+
+        .source-item .source-link {
+            color: #667eea;
+            font-size: 12px;
+            text-decoration: none;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6b7280;
+            display: none;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .loading-spinner {
+            border: 4px solid #f3f4f6;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #fee2e2;
+            color: #991b1b;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+            display: none;
+        }
+
+        .error.show {
+            display: block;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 500;
+            color: #6b7280;
+        }
+
+        .tab.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔧 RCE Admin Panel - Enhanced</h1>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+
+        <!-- Query Form -->
+        <div class="test-section">
+            <h2>Test RCE Engine</h2>
+            <form id="testForm" onsubmit="runTest(event)">
+                <div class="form-group">
+                    <label for="domain">Domain</label>
+                    <select id="domain" name="domain">
+                        <option value="general">General</option>
+                        <option value="medical">Medical</option>
+                        <option value="legal">Legal</option>
+                        <option value="financial">Financial</option>
+                        <option value="technical">Technical</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="query">Query</label>
+                    <textarea id="query" name="query" placeholder="Enter your query here..." required></textarea>
+                </div>
+                <div class="button-group">
+                    <button type="submit" class="submit-btn" id="submitBtn">Run Test</button>
+                    <button type="button" class="download-btn" id="downloadBtn" onclick="downloadAudit()">Download Audit Trail</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Loading -->
+        <div class="loading" id="loading">
+            <div class="loading-spinner"></div>
+            <p>Processing query through RCE pipeline...</p>
+        </div>
+
+        <!-- Error -->
+        <div class="error" id="error"></div>
+
+        <!-- Pipeline Visualization -->
+        <div class="pipeline-section" id="pipelineSection">
+            <h2>🔄 Pipeline Execution Steps</h2>
+            <div class="tabs">
+                <div class="tab active" onclick="showTab('steps')">Pipeline Steps</div>
+                <div class="tab" onclick="showTab('graph')">Graph Details</div>
+            </div>
+            <div id="pipelineContent"></div>
+        </div>
+
+        <!-- Results Section -->
+        <div class="results-section" id="resultsSection">
+            <h2>✅ Results</h2>
+
+            <div class="result-answer">
+                <h3>Generated Answer</h3>
+                <p id="resultAnswer"></p>
+            </div>
+
+            <div id="sourcesContainer"></div>
+
+            <h3 style="margin-bottom: 15px;">Metrics</h3>
+            <div class="result-metrics" id="resultMetrics"></div>
+
+            <h3 style="margin: 20px 0 15px;">Module Scores</h3>
+            <div class="result-metrics" id="moduleScores"></div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================================
+        // CONFIGURATION: Update this with your deployed backend URL
+        // ============================================================================
+        const API_BASE_URL = 'http://localhost:5001';  // Change to your Render.com URL when deployed
+        // Example: const API_BASE_URL = 'https://rce-backend-xxxx.onrender.com';
+
+        let currentResult = null;
+        let currentTab = 'steps';
+
+        function logout() {
+            // For standalone page, just reload to clear data
+            sessionStorage.clear();
+            window.location.reload();
+        }
+
+        function showTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            displayPipelineData(currentResult);
+        }
+
+        async function runTest(event) {
+            event.preventDefault();
+
+            const query = document.getElementById('query').value;
+            const domain = document.getElementById('domain').value;
+
+            // Reset UI
+            document.getElementById('loading').classList.add('show');
+            document.getElementById('pipelineSection').classList.remove('show');
+            document.getElementById('resultsSection').classList.remove('show');
+            document.getElementById('error').classList.remove('show');
+            document.getElementById('downloadBtn').classList.remove('show');
+            document.getElementById('submitBtn').disabled = true;
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/admin/test`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Basic ' + btoa('admin:rce2024')  // Same credentials
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({ query, domain, format: 'detailed' })
+                });
+
+                const data = await response.json();
+                currentResult = data;
+
+                if (data.success) {
+                    displayResults(data);
+                    displayPipelineData(data);
+                    document.getElementById('downloadBtn').classList.add('show');
+                } else {
+                    throw new Error(data.error || 'Unknown error');
+                }
+            } catch (error) {
+                document.getElementById('error').textContent = 'Error: ' + error.message;
+                document.getElementById('error').classList.add('show');
+            } finally {
+                document.getElementById('loading').classList.remove('show');
+                document.getElementById('submitBtn').disabled = false;
+            }
+        }
+
+        function displayResults(data) {
+            // Show results section
+            document.getElementById('resultsSection').classList.add('show');
+
+            // Answer
+            document.getElementById('resultAnswer').textContent = data.answer || 'No answer generated';
+
+            // Knowledge Sources
+            if (data.knowledge_sources && data.knowledge_sources.length > 0) {
+                const sourcesHTML = `
+                    <div class="sources-section">
+                        <h3>📚 Knowledge Sources (${data.num_sources})</h3>
+                        ${data.knowledge_sources.map(source => `
+                            <div class="source-item">
+                                <div class="source-title">${source.title}</div>
+                                <div class="source-snippet">${source.snippet.substring(0, 200)}...</div>
+                                <a href="${source.source}" target="_blank" class="source-link">
+                                    ${source.source} (confidence: ${(source.confidence * 100).toFixed(0)}%)
+                                </a>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                document.getElementById('sourcesContainer').innerHTML = sourcesHTML;
+            }
+
+            // Metrics
+            const metrics = data.coherence;
+            const metricsHTML = `
+                <div class="metric-box">
+                    <div class="label">Coherence</div>
+                    <div class="value">${metrics.overall.toFixed(3)}</div>
+                </div>
+                <div class="metric-box">
+                    <div class="label">Confidence</div>
+                    <div class="value">${metrics.confidence.toFixed(3)}</div>
+                </div>
+                <div class="metric-box">
+                    <div class="label">Processing Time</div>
+                    <div class="value">${data.processing_time_ms.toFixed(1)}ms</div>
+                </div>
+                <div class="metric-box">
+                    <div class="label">Entities</div>
+                    <div class="value">${data.graph.optimized_entities}</div>
+                </div>
+                <div class="metric-box">
+                    <div class="label">Relations</div>
+                    <div class="value">${data.graph.optimized_relations}</div>
+                </div>
+            `;
+            document.getElementById('resultMetrics').innerHTML = metricsHTML;
+
+            // Module Scores
+            const moduleHTML = Object.entries(metrics.module_scores).map(([name, score]) => `
+                <div class="metric-box">
+                    <div class="label">${name}</div>
+                    <div class="value">${score.toFixed(3)}</div>
+                </div>
+            `).join('');
+            document.getElementById('moduleScores').innerHTML = moduleHTML;
+        }
+
+        function displayPipelineData(data) {
+            if (!data) return;
+
+            document.getElementById('pipelineSection').classList.add('show');
+
+            if (currentTab === 'steps') {
+                displayPipelineSteps(data);
+            } else {
+                displayGraphDetails(data);
+            }
+        }
+
+        function displayPipelineSteps(data) {
+            const tech = data.technologies || {};
+
+            const steps = [
+                {
+                    name: '1. Knowledge Retrieval',
+                    status: 'completed',
+                    technology: tech.knowledge_retrieval?.method || 'DuckDuckGo API',
+                    data: {
+                        'Sources Retrieved': data.num_sources || 0,
+                        'Avg Confidence': data.source_confidence || 'N/A',
+                        'First Source': data.knowledge_sources?.[0]?.title || 'None',
+                        '📊 Tokens Retrieved': data.tokens?.source_tokens || 'N/A',
+                        '🔧 Technology': tech.knowledge_retrieval?.method || 'Web Search API'
+                    }
+                },
+                {
+                    name: '2. Preprocessing',
+                    status: 'completed',
+                    technology: tech.preprocessing?.tokenization || 'Tokenizer',
+                    data: {
+                        'Tokenization': tech.preprocessing?.tokenization || 'Complete',
+                        'Normalization': tech.preprocessing?.normalization || 'Applied',
+                        'Canonicalization': tech.preprocessing?.canonicalization || 'Complete',
+                        '📊 Input Tokens': data.tokens?.input_tokens || 'N/A',
+                        '📊 Total Tokens': data.tokens?.total_tokens || 'N/A',
+                        '🔧 NLP Engine': tech.preprocessing?.tokenization || 'SimpleTokenizer'
+                    }
+                },
+                {
+                    name: '3. Graph Construction',
+                    status: 'completed',
+                    technology: 'Multi-method extraction',
+                    data: {
+                        'Entities Extracted': data.graph.original_entities,
+                        'Relations Extracted': data.graph.original_relations,
+                        'Context Domain': data.context.domain,
+                        'Intent Detected': data.context.intent,
+                        '📐 Adjacency Matrix': data.matrices?.adjacency_matrix?.dimensions || 'N/A',
+                        '📐 Matrix Sparsity': data.matrices?.adjacency_matrix?.sparsity ? (data.matrices.adjacency_matrix.sparsity * 100).toFixed(1) + '%' : 'N/A',
+                        '🧮 Embedding Dimension': data.embeddings?.embedding_dimension || 'N/A',
+                        '🧮 Embedding Matrix': data.matrices?.entity_embedding_matrix?.dimensions || 'N/A',
+                        '🔧 Entity Methods': tech.graph_construction?.entity_extraction?.join(', ') || 'N/A',
+                        '🔧 Relation Methods': tech.graph_construction?.relation_extraction?.join(', ') || 'N/A'
+                    }
+                },
+                {
+                    name: '4. Coherence Evaluation',
+                    status: 'completed',
+                    technology: tech.coherence_evaluation?.aggregation || 'Weighted aggregation',
+                    data: {
+                        'Overall Coherence': data.coherence.overall.toFixed(3),
+                        'Confidence Score': data.coherence.confidence.toFixed(3),
+                        'Units Module': data.coherence.module_scores.units.toFixed(3),
+                        'Temporal Module': data.coherence.module_scores.temporal.toFixed(3),
+                        'Arithmetic Module': data.coherence.module_scores.arithmetic.toFixed(3),
+                        'Coreference Module': data.coherence.module_scores.coreference.toFixed(3),
+                        'Entailment Module': data.coherence.module_scores.entailment.toFixed(3),
+                        '🔬 Harmonization Method': data.embeddings?.harmonization?.method || 'N/A',
+                        '🔬 Entities Harmonized': data.embeddings?.harmonization?.entities_harmonized || 'N/A',
+                        '🔧 Logic Engine': tech.coherence_evaluation?.logic_engine || 'Rule-based validation'
+                    }
+                },
+                {
+                    name: '5. Optimization',
+                    status: 'completed',
+                    technology: tech.optimization?.algorithm || 'Multi-objective optimization',
+                    data: {
+                        'Candidates Evaluated': data.optimization.num_candidates,
+                        'Optimal Score': data.optimization.optimal_score.toFixed(3),
+                        'Reduction Ratio': data.optimization.reduction_ratio.toFixed(2),
+                        'Constraints Satisfied': data.optimization.constraints_satisfied ? 'Yes' : 'No',
+                        '🔧 Algorithm': tech.optimization?.method || 'Greedy selection'
+                    }
+                },
+                {
+                    name: '6. Answer Rendering',
+                    status: 'completed',
+                    technology: tech.answer_generation?.mode || 'Hybrid generation',
+                    data: {
+                        'Answer Generated': data.answer ? 'Yes' : 'No',
+                        'Format': 'Text',
+                        'Final Entities': data.graph.optimized_entities,
+                        'Final Relations': data.graph.optimized_relations,
+                        '📊 Output Tokens': data.tokens?.output_tokens || 'N/A',
+                        '📊 Compression Ratio': data.tokens?.compression_ratio ? (data.tokens.compression_ratio * 100).toFixed(1) + '%' : 'N/A',
+                        '🔧 Generation Mode': tech.answer_generation?.mode || 'Hybrid (graph + source)'
+                    }
+                }
+            ];
+
+            const stepsHTML = steps.map(step => `
+                <div class="pipeline-step ${step.status}">
+                    <div class="step-header">
+                        <h3>${step.name}</h3>
+                        <span class="step-status ${step.status}">${step.status}</span>
+                    </div>
+                    <div class="step-data">
+                        ${Object.entries(step.data).map(([key, value]) => `
+                            <div><strong>${key}:</strong> ${value}</div>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+
+            document.getElementById('pipelineContent').innerHTML = `
+                <div class="pipeline-steps">${stepsHTML}</div>
+            `;
+        }
+
+        function displayGraphDetails(data) {
+            const graphHTML = `
+                <div class="pipeline-step">
+                    <h3>Original Graph</h3>
+                    <div class="step-data">
+                        <div><strong>Total Entities:</strong> ${data.graph.original_entities}</div>
+                        <div><strong>Total Relations:</strong> ${data.graph.original_relations}</div>
+                    </div>
+                </div>
+                <div class="pipeline-step active">
+                    <h3>Optimized Graph (Selected)</h3>
+                    <div class="step-data">
+                        <div><strong>Selected Entities:</strong> ${data.graph.optimized_entities}</div>
+                        <div><strong>Selected Relations:</strong> ${data.graph.optimized_relations}</div>
+                        <div><strong>Reduction:</strong> ${((1 - data.optimization.reduction_ratio) * 100).toFixed(1)}% kept</div>
+                    </div>
+                </div>
+                <div class="pipeline-step">
+                    <h3>Coherence Weights (Domain: ${data.context.domain})</h3>
+                    <div class="step-data">
+                        ${Object.entries(data.coherence.module_weights).map(([key, value]) => `
+                            <div><strong>${key}:</strong> ${value.toFixed(2)}</div>
+                        `).join('')}
+                    </div>
+                </div>
+                <div class="pipeline-step">
+                    <h3>Violations Detected</h3>
+                    <div class="step-data">
+                        ${data.coherence.violations.length === 0 ?
+                            '<div>No coherence violations detected ✓</div>' :
+                            data.coherence.violations.map(v => `<div>${v}</div>`).join('')
+                        }
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('pipelineContent').innerHTML = graphHTML;
+        }
+
+        function downloadAudit() {
+            if (!currentResult) return;
+
+            const auditData = {
+                query: document.getElementById('query').value,
+                domain: document.getElementById('domain').value,
+                timestamp: new Date().toISOString(),
+                result: currentResult
+            };
+
+            const blob = new Blob([JSON.stringify(auditData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `rce-audit-${Date.now()}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
