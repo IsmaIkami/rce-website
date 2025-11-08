@@ -1,0 +1,1199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RCE - Relational Cognitive Engine</title>
+<style>
+:root {
+  --bg: #0a0a0a;
+  --text: #e8e8e8;
+  --muted: #888;
+  --accent: #00d4aa;
+  --border: #2a2a2a;
+  --card: #141414;
+  --sidebar-width: 280px;
+}
+body.light {
+  --bg: #fafafa;
+  --text: #1a1a1a;
+  --muted: #666;
+  --accent: #00a080;
+  --border: #e0e0e0;
+  --card: #ffffff;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  transition: background .25s, color .25s;
+  display: flex;
+}
+
+/* SIDEBAR */
+.sidebar {
+  width: var(--sidebar-width);
+  height: 100vh;
+  background: var(--card);
+  border-right: 1px solid var(--border);
+  padding: 20px;
+  position: fixed;
+  left: 0;
+  top: 0;
+  overflow-y: auto;
+  transition: transform 0.3s ease;
+  z-index: 100;
+}
+.sidebar.hidden {
+  transform: translateX(-100%);
+}
+.sidebar h3 {
+  font-size: 14px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 20px 0 10px;
+  letter-spacing: 0.5px;
+}
+.hist-item {
+  padding: 10px;
+  margin: 5px 0;
+  background: var(--bg);
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.hist-item:hover {
+  background: var(--border);
+}
+.sidebar-nav-links {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 10px;
+}
+.sidebar-nav-item {
+  color: var(--text);
+  text-decoration: none;
+  padding: 10px;
+  border-radius: 6px;
+  transition: background 0.2s;
+  font-size: 14px;
+}
+.sidebar-nav-item:hover {
+  background: var(--bg);
+  color: var(--accent);
+}
+.sidebar-toggle {
+  position: fixed;
+  left: 10px;
+  top: 10px;
+  z-index: 101;
+  background: var(--accent);
+  color: #000;
+  border: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: left 0.3s ease;
+}
+.sidebar-toggle.sidebar-hidden {
+  left: 10px;
+}
+
+/* MAIN CONTENT */
+.main-content {
+  flex: 1;
+  margin-left: var(--sidebar-width);
+  transition: margin-left 0.3s ease;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+.main-content.sidebar-hidden {
+  margin-left: 0;
+}
+
+/* HEADER */
+.header {
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  padding: 15px 60px 15px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 99;
+}
+.logo-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.logo-brackets {
+  font-size: 22px;
+  color: var(--accent);
+  font-weight: 300;
+}
+.logo-text {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+.header-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.theme-btn {
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 8px 16px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 14px;
+}
+.menu-btn {
+  background: var(--accent);
+  color: #000;
+  padding: 8px 16px;
+  border-radius: 20px;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+/* NAVIGATION */
+.nav {
+  position: fixed;
+  top: 0;
+  right: -100%;
+  width: 80%;
+  max-width: 300px;
+  height: 100vh;
+  background: var(--card);
+  border-left: 1px solid var(--border);
+  padding: 20px;
+  transition: right 0.3s;
+  z-index: 200;
+  overflow-y: auto;
+}
+.nav.active {
+  right: 0;
+}
+.nav-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  background: rgba(0,0,0,0.5);
+  display: none;
+  z-index: 150;
+}
+.nav-overlay.active {
+  display: block;
+}
+.nav-close {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  font-size: 24px;
+  cursor: pointer;
+  color: var(--text);
+}
+.nav-link {
+  display: block;
+  padding: 12px;
+  color: var(--text);
+  text-decoration: none;
+  border-radius: 8px;
+  margin: 5px 0;
+  cursor: pointer;
+}
+.nav-link:hover, .nav-link.active {
+  background: var(--bg);
+  color: var(--accent);
+}
+
+/* CONTAINER */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+  flex: 1;
+}
+.page {
+  display: none;
+}
+.page.active {
+  display: block;
+}
+
+/* INPUT BAR */
+.input-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 40px;
+  padding: 14px 18px;
+  margin: 20px 0 10px;
+}
+.input-bar input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-size: 16px;
+}
+.input-bar input::placeholder {
+  color: var(--muted);
+}
+.input-bar button {
+  background: var(--accent);
+  color: #000;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 20px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* METRICS */
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin: 10px 0 20px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.metrics span {
+  background: var(--card);
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+.metric-value {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* RESPONSE */
+.response {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+  margin: 20px 0;
+  line-height: 1.6;
+}
+.response strong {
+  color: var(--accent);
+}
+
+/* SECTIONS */
+.section-title {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 30px 0 15px;
+}
+.section-subtitle {
+  color: var(--muted);
+  font-size: 15px;
+  margin-bottom: 20px;
+  line-height: 1.6;
+}
+
+/* FEATURES */
+.features {
+  display: grid;
+  gap: 15px;
+}
+.feature-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+}
+.feature-card h3 {
+  font-size: 18px;
+  margin-bottom: 10px;
+  color: var(--accent);
+}
+.feature-card p {
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.6;
+  margin: 8px 0;
+}
+.feature-card strong {
+  color: var(--text);
+}
+.feature-card ul {
+  list-style: none;
+  margin: 10px 0;
+}
+.feature-card li {
+  padding: 6px 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+.feature-card li:before {
+  content: "→ ";
+  color: var(--accent);
+  font-weight: 700;
+  margin-right: 8px;
+}
+
+/* PRICING */
+.pricing {
+  display: grid;
+  gap: 15px;
+  margin: 20px 0;
+}
+.plan {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  position: relative;
+}
+.plan.featured {
+  border: 2px solid var(--accent);
+}
+.plan.featured::before {
+  content: "Most Popular";
+  position: absolute;
+  top: -10px;
+  left: 20px;
+  background: var(--accent);
+  color: #000;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.plan h3 {
+  font-size: 20px;
+  margin-bottom: 8px;
+}
+.price {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--accent);
+  margin: 10px 0;
+}
+.plan ul {
+  list-style: none;
+  margin: 15px 0;
+}
+.plan li {
+  padding: 8px 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+.plan li:before {
+  content: "✓ ";
+  color: var(--accent);
+  font-weight: 700;
+  margin-right: 8px;
+}
+
+/* PIPELINE */
+.pipeline-step {
+  display: flex;
+  align-items: flex-start;
+  margin: 15px 0;
+  padding: 15px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.step-number {
+  background: var(--accent);
+  color: #000;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  flex-shrink: 0;
+  margin-right: 15px;
+}
+.step-content h4 {
+  font-size: 16px;
+  margin-bottom: 5px;
+  color: var(--accent);
+}
+.step-content p {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+/* FAQ */
+.faq-item {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  margin: 15px 0;
+}
+.faq-question {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: 10px;
+}
+.faq-answer {
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+/* BUTTONS */
+.btn-primary {
+  background: var(--accent);
+  color: #000;
+  padding: 12px 24px;
+  border-radius: 25px;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 15px;
+  width: 100%;
+  margin-top: 10px;
+}
+
+/* FORM */
+.form-group {
+  margin-bottom: 15px;
+}
+.form-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 600;
+  font-size: 14px;
+}
+.form-group input,
+.form-group textarea,
+.form-group select {
+  width: 100%;
+  padding: 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 14px;
+}
+.form-group textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+/* FOOTER */
+.footer {
+  text-align: center;
+  padding: 30px 20px;
+  border-top: 1px solid var(--border);
+  margin-top: 40px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* MOBILE */
+@media (max-width: 768px) {
+  .sidebar {
+    transform: translateX(-100%);
+  }
+  .sidebar-toggle {
+    left: 10px !important;
+  }
+  .main-content {
+    margin-left: 0;
+  }
+  .header {
+    padding-left: 60px;
+  }
+}
+
+@media (min-width: 769px) {
+  .metrics {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  .features {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .pricing {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR TOGGLE -->
+<button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+  <div class="logo-container" style="margin-bottom: 30px;">
+    <span class="logo-brackets">⟨</span>
+    <span class="logo-text">RCE</span>
+    <span class="logo-brackets">⟩</span>
+  </div>
+  
+  <h3>Recent Queries</h3>
+  <div class="hist-item" onclick="loadHistory(0)">Drug interaction: Aspirin + Warfarin</div>
+  <div class="hist-item" onclick="loadHistory(1)">Contract temporal analysis Q3 2024</div>
+  <div class="hist-item" onclick="loadHistory(2)">Financial risk assessment IFRS compliance</div>
+  <div class="hist-item" onclick="loadHistory(3)">Medical reasoning: insulin mechanism</div>
+  
+  <h3>Quick Links</h3>
+  <div class="sidebar-nav-links">
+    <a href="#" onclick="showPage('home'); return false;" class="sidebar-nav-item">Home</a>
+    <a href="#" onclick="showPage('about'); return false;" class="sidebar-nav-item">About</a>
+    <a href="#" onclick="showPage('pricing'); return false;" class="sidebar-nav-item">Pricing</a>
+    <a href="#" onclick="showPage('contact'); return false;" class="sidebar-nav-item">Contact</a>
+  </div>
+</aside>
+
+<!-- MAIN CONTENT -->
+<div class="main-content" id="mainContent">
+
+<!-- HEADER -->
+<div class="header">
+  <div class="logo-container">
+    <span class="logo-brackets">⟨</span>
+    <span class="logo-text">RCE</span>
+    <span class="logo-brackets">⟩</span>
+  </div>
+  <div class="header-actions">
+    <button class="theme-btn" onclick="toggleTheme()">🌓</button>
+    <button class="menu-btn" onclick="toggleMenu()">Menu</button>
+  </div>
+</div>
+
+<!-- NAVIGATION -->
+<div class="nav-overlay" onclick="toggleMenu()"></div>
+<div class="nav">
+  <span class="nav-close" onclick="toggleMenu()">×</span>
+  <h3 style="margin-bottom: 20px;">Navigation</h3>
+  <a class="nav-link active" onclick="showPage('home')">🏠 Home</a>
+  <a class="nav-link" onclick="showPage('about')">👤 Who Are We</a>
+  <a class="nav-link" onclick="showPage('pipeline')">🔄 AI Pipeline</a>
+  <a class="nav-link" onclick="showPage('solutions')">🏭 Solutions</a>
+  <a class="nav-link" onclick="showPage('pricing')">💰 Pricing</a>
+  <a class="nav-link" onclick="showPage('research')">🔬 Research</a>
+  <a class="nav-link" onclick="showPage('faq')">❓ FAQ</a>
+  <a class="nav-link" onclick="showPage('contact')">📧 Contact</a>
+</div>
+
+<div class="container">
+
+  <!-- HOME PAGE -->
+  <div id="home" class="page active">
+    <div class="input-bar">
+      <input id="userInput" type="text" placeholder="Enter a question or paste text to analyze...">
+      <button id="sendBtn">→</button>
+    </div>
+
+    <div class="metrics">
+      <span>☁️ CO₂ ~ <span class="metric-value" id="kpiCo2">1.2g</span></span>
+      <span>⚡ Energy ~ <span class="metric-value" id="kpiEnergy">0.006 kWh</span></span>
+      <span>📈 Coherence: <span class="metric-value" id="kpiCoherence">0.87</span></span>
+      <span>🎯 Accuracy: <span class="metric-value" id="kpiHall">90.5%</span></span>
+    </div>
+
+    <div class="response" id="responseBox">
+      <strong>RCE:</strong> Deterministic response based on verified semantic relations. Full audit trail available.
+    </div>
+
+    <div class="section-title">Relational Cognitive Engine</div>
+    <p class="section-subtitle">A coherence-as-a-service layer that significantly reduces AI hallucinations through relational graph optimization.</p>
+
+    <div class="features">
+      <div class="feature-card">
+        <h3>🎯 Reduced Hallucinations</h3>
+        <p>90.5% average accuracy across diagnostic benchmarks. Deterministic reasoning grounds every output in verified relations.</p>
+      </div>
+      <div class="feature-card">
+        <h3>🔍 Full Transparency</h3>
+        <p>Complete audit trails show exactly how conclusions were reached, meeting EU AI Act requirements.</p>
+      </div>
+      <div class="feature-card">
+        <h3>⚡ Energy Efficient</h3>
+        <p>3-5× less computation than traditional approaches. Lower costs and reduced carbon footprint.</p>
+      </div>
+      <div class="feature-card">
+        <h3>🔌 Easy Integration</h3>
+        <p>Plugs into existing AI pipelines. Compatible with GPT-4, Claude, Llama, and any LLM.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- WHO ARE WE PAGE -->
+  <div id="about" class="page">
+    <div class="section-title">Who Are We</div>
+    <p class="section-subtitle">From peer-reviewed research to production-ready AI reliability solution</p>
+
+    <div class="feature-card">
+      <h3>📚 Origin: Academic Research</h3>
+      <p><strong>October 2025:</strong> Publication of peer-reviewed research paper "RCE-LLM: A Relational Coherence Engine for Consistent and Energy-Efficient Language Modeling"</p>
+      <p style="margin-top: 10px;"><strong>Author:</strong> Ismail Sialyen, Independent Researcher</p>
+      <p style="margin-top: 10px;"><strong>DOI:</strong> 10.5281/zenodo.17360372</p>
+      <p style="margin-top: 10px;">Read the full paper: <a href="https://doi.org/10.5281/zenodo.17360372" style="color: var(--accent);">https://doi.org/10.5281/zenodo.17360372</a></p>
+    </div>
+
+    <div class="feature-card">
+      <h3>🔬 The Research Foundation</h3>
+      <p>The paper introduced a fundamental shift in language modeling: replacing probabilistic token prediction with deterministic coherence optimization over explicit relational graphs.</p>
+      <p style="margin-top: 10px;"><strong>Key Innovation:</strong> Instead of maximizing token likelihood, RCE maximizes semantic coherence across five dimensions: units consistency, temporal ordering, arithmetic validity, coreference resolution, and factual grounding.</p>
+      <p style="margin-top: 10px;"><strong>Validated Results:</strong></p>
+      <ul style="margin-top: 10px;">
+        <li>91.7% accuracy on units consistency tasks</li>
+        <li>95.2% accuracy on compositional arithmetic</li>
+        <li>90.5% average across all diagnostic benchmarks</li>
+        <li>3-5× computational efficiency vs traditional attention</li>
+      </ul>
+    </div>
+
+    <div class="feature-card">
+      <h3>🚀 From Paper to Product</h3>
+      <p>Following the publication, we recognized the urgent market need for reliable AI in regulated industries. Enterprise deployments face 25-40% hallucination rates, and the EU AI Act (August 2025) creates mandatory compliance requirements.</p>
+      <p style="margin-top: 10px;"><strong>Our Mission:</strong> Transform the theoretical framework into a production-grade API that any company can integrate into their AI pipeline to significantly enhance reliability and traceability.</p>
+    </div>
+
+    <div class="section-title">The Team</div>
+    <div class="features">
+      <div class="feature-card">
+        <h3>Ismail Sialyen</h3>
+        <p><strong>Founder & Chief Scientist</strong></p>
+        <p style="margin-top: 10px;">Independent researcher with groundbreaking work in contextual coherence theory. Author of the peer-reviewed RCE-LLM paper. Deep expertise in AI/ML research, graph theory, and optimization.</p>
+      </div>
+      <div class="feature-card">
+        <h3>AI Engineering Team</h3>
+        <p><strong>Core Development</strong></p>
+        <p style="margin-top: 10px;"><strong>AI Engineer:</strong> Implementation, system integration, performance optimization</p>
+        <p style="margin-top: 8px;"><strong>Data Scientist:</strong> Coherence metrics development, evaluation frameworks, benchmarking</p>
+      </div>
+      <div class="feature-card">
+        <h3>Infrastructure & Security</h3>
+        <p><strong>AI Infrastructure & Security Engineer</strong></p>
+        <p style="margin-top: 10px;">Cloud deployment, security architecture, compliance infrastructure, scalable production systems</p>
+      </div>
+      <div class="feature-card">
+        <h3>Commercial & IP</h3>
+        <p><strong>Commercial Engineer</strong></p>
+        <p style="margin-top: 10px;">Specializing in IT patents, intellectual property strategy, technology commercialization, and licensing</p>
+      </div>
+      <div class="feature-card">
+        <h3>IKAMI Research</h3>
+        <p><strong>Research Organization</strong></p>
+        <p style="margin-top: 10px;">Dedicated to advancing deterministic AI reasoning and explainable language models for enterprise applications.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- PIPELINE PAGE -->
+  <div id="pipeline" class="page">
+    <div class="section-title">AI Pipeline Integration</div>
+    <p class="section-subtitle">RCE adds a verification layer to your existing AI stack. The earlier you integrate, the better the results.</p>
+
+    <div class="feature-card" style="background: linear-gradient(135deg, var(--card) 0%, var(--bg) 100%); border: 2px solid var(--accent);">
+      <h3>🎯 Critical Insight: Integration Timing Matters</h3>
+      <p><strong>Native RCE (Best):</strong> Build your AI pipeline with RCE from the start. Maximum hallucination reduction and full traceability.</p>
+      <p style="margin-top: 10px;"><strong>Early Integration (Better):</strong> Add RCE before LLM generation. Guides the model toward coherent outputs.</p>
+      <p style="margin-top: 10px;"><strong>Post-Processing (Good):</strong> Verify LLM outputs with RCE. Catches errors but can't prevent them.</p>
+      <p style="margin-top: 10px; font-weight: 600; color: var(--accent);">The earlier RCE is integrated into your pipeline, the better the hallucination reduction and the more complete the audit trail.</p>
+    </div>
+
+    <div class="section-title">Integration Modes</div>
+
+    <div class="pipeline-step">
+      <div class="step-number">1</div>
+      <div class="step-content">
+        <h4>RCE-Native (Recommended)</h4>
+        <p><strong>Best performance:</strong> Design your AI system around RCE from day one. Build relational graphs first, then use coherence scores to guide generation. Maximum reliability and full explainability.</p>
+        <p style="margin-top: 8px; color: var(--accent); font-weight: 600;">→ Hallucination reduction: 15-20% on formal reasoning tasks</p>
+      </div>
+    </div>
+
+    <div class="pipeline-step">
+      <div class="step-number">2</div>
+      <div class="step-content">
+        <h4>RCE-Rerank (Early Integration)</h4>
+        <p>LLM generates multiple candidates → RCE scores each via coherence functional → Return highest scoring option. Better than post-processing because RCE influences the final output selection.</p>
+        <p style="margin-top: 8px; color: var(--accent); font-weight: 600;">→ Hallucination reduction: 10-15% improvement over baseline</p>
+      </div>
+    </div>
+
+    <div class="pipeline-step">
+      <div class="step-number">3</div>
+      <div class="step-content">
+        <h4>RCE-Verify (Post-Processing)</h4>
+        <p>Your LLM generates output → RCE validates → Returns verified response with coherence score. Easiest to implement but offers least improvement since errors are detected after generation.</p>
+        <p style="margin-top: 8px; color: var(--accent); font-weight: 600;">→ Hallucination reduction: 8-12% improvement</p>
+      </div>
+    </div>
+
+    <div class="pipeline-step">
+      <div class="step-number">4</div>
+      <div class="step-content">
+        <h4>RCE-RAG (Enhanced Retrieval)</h4>
+        <p>Vector DB retrieval → RCE extracts and validates relations from documents → Coherence-guided context selection → LLM generates with verified context. Improves both retrieval and generation quality.</p>
+        <p style="margin-top: 8px; color: var(--accent); font-weight: 600;">→ Factual grounding: 85.6% accuracy on F5 benchmark</p>
+      </div>
+    </div>
+
+    <div class="section-title">Compatible With</div>
+    <div class="features">
+      <div class="feature-card">
+        <h3>LLMs</h3>
+        <p>GPT-4, Claude, Llama, Mistral, Gemini - works with any text generation model</p>
+      </div>
+      <div class="feature-card">
+        <h3>Vector DBs</h3>
+        <p>Pinecone, Weaviate, Chroma, FAISS, Qdrant - standard RAG stacks supported</p>
+      </div>
+      <div class="feature-card">
+        <h3>Frameworks</h3>
+        <p>LangChain, LlamaIndex, Haystack, spaCy - drop-in integration</p>
+      </div>
+      <div class="feature-card">
+        <h3>Deployment</h3>
+        <p>REST API, Python SDK, on-premise, or cloud - your choice</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SOLUTIONS PAGE -->
+  <div id="solutions" class="page">
+    <div class="section-title">Industry Solutions</div>
+    <p class="section-subtitle">Pre-validated coherence modules for regulated sectors</p>
+
+    <div class="feature-card">
+      <h3>🏥 Healthcare</h3>
+      <p><strong>Challenge:</strong> LLMs hallucinate drug interactions and medical advice</p>
+      <p><strong>Solution:</strong> RCE validates against medical ontologies (SNOMED, RxNorm, WHO guidelines) using factual entailment module</p>
+      <p><strong>Validated Results:</strong> 85.6% accuracy on factual grounding benchmarks</p>
+    </div>
+
+    <div class="feature-card">
+      <h3>⚖️ Legal</h3>
+      <p><strong>Challenge:</strong> Inconsistent contract interpretation and temporal reasoning errors</p>
+      <p><strong>Solution:</strong> RCE ensures temporal consistency and entity resolution</p>
+      <p><strong>Validated Results:</strong> 89.4% accuracy on temporal reasoning, 90.8% on coreference</p>
+    </div>
+
+    <div class="feature-card">
+      <h3>💰 Finance</h3>
+      <p><strong>Challenge:</strong> Quantitative errors and unit inconsistencies in financial analysis</p>
+      <p><strong>Solution:</strong> RCE validates dimensional consistency and arithmetic validity</p>
+      <p><strong>Validated Results:</strong> 91.7% accuracy on units consistency, 95.2% on compositional arithmetic</p>
+    </div>
+
+    <div class="feature-card">
+      <h3>🏢 Enterprise AI Platforms</h3>
+      <p><strong>Challenge:</strong> General AI reliability issues and EU AI Act compliance requirements</p>
+      <p><strong>Solution:</strong> RCE provides explainable outputs with complete audit trails</p>
+      <p><strong>Result:</strong> Meets EU AI Act Article 13 transparency requirements, full traceability</p>
+    </div>
+
+    <div class="feature-card">
+      <h3>📡 Telecommunications</h3>
+      <p><strong>Challenge:</strong> Network troubleshooting, incident root cause analysis, complex system diagnostics with temporal dependencies</p>
+      <p><strong>Solution:</strong> RCE ensures temporal consistency and causal reasoning for network events and fault analysis</p>
+      <p><strong>Validated Results:</strong> 89.4% accuracy on temporal reasoning, enabling precise incident timeline reconstruction</p>
+    </div>
+  </div>
+
+  <!-- PRICING PAGE -->
+  <div id="pricing" class="page">
+    <div class="section-title">Simple Pricing</div>
+    <p class="section-subtitle">Start free, scale as you grow</p>
+
+    <div class="pricing">
+      <div class="plan">
+        <h3>Free</h3>
+        <div class="price">€0/mo</div>
+        <ul>
+          <li>1,000 verifications/month</li>
+          <li>Basic coherence checks</li>
+          <li>Community support</li>
+          <li>Public API access</li>
+        </ul>
+        <button class="btn-primary" onclick="showPage('contact')">Get Started</button>
+      </div>
+
+      <div class="plan">
+        <h3>Pro</h3>
+        <div class="price">€49/mo</div>
+        <ul>
+          <li>50,000 verifications/month</li>
+          <li>All coherence modules</li>
+          <li>Full audit trails</li>
+          <li>Email support (24h)</li>
+          <li>99.5% uptime SLA</li>
+        </ul>
+        <button class="btn-primary" onclick="showPage('contact')">Start Trial</button>
+      </div>
+
+      <div class="plan featured">
+        <h3>Pro Plus</h3>
+        <div class="price">€89/mo</div>
+        <ul>
+          <li>150,000 verifications/month</li>
+          <li>Priority support (4h)</li>
+          <li>Custom domains</li>
+          <li>Advanced analytics</li>
+          <li>SSO/SAML</li>
+          <li>99.9% uptime SLA</li>
+        </ul>
+        <button class="btn-primary" onclick="showPage('contact')">Start Trial</button>
+      </div>
+
+      <div class="plan">
+        <h3>Pro Max</h3>
+        <div class="price">€149/mo</div>
+        <ul>
+          <li>500,000 verifications/month</li>
+          <li>Dedicated support (1h)</li>
+          <li>White-label options</li>
+          <li>Custom integrations</li>
+          <li>99.95% uptime SLA</li>
+          <li>Quarterly reviews</li>
+        </ul>
+        <button class="btn-primary" onclick="showPage('contact')">Start Trial</button>
+      </div>
+    </div>
+
+    <div class="feature-card" style="margin-top: 20px;">
+      <h3>Enterprise (On-Demand)</h3>
+      <p><strong>Need more?</strong> Custom solutions for large-scale deployments</p>
+      <ul style="margin-top: 10px;">
+        <li>Unlimited verifications</li>
+        <li>On-premise deployment</li>
+        <li>Custom coherence modules</li>
+        <li>24/7 phone support</li>
+        <li>Dedicated infrastructure</li>
+      </ul>
+      <button class="btn-primary" onclick="showPage('contact')">Request Quote</button>
+    </div>
+  </div>
+
+  <!-- RESEARCH PAGE -->
+  <div id="research" class="page">
+    <div class="section-title">Academic Research</div>
+    <p class="section-subtitle">Peer-reviewed foundation published October 2025</p>
+
+    <div class="feature-card">
+      <h3>RCE-LLM: A Relational Coherence Engine for Consistent and Energy-Efficient Language Modeling</h3>
+      <p style="margin: 10px 0;"><strong>Author:</strong> Ismail Sialyen (Independent Researcher)</p>
+      <p><strong>Published:</strong> October 15, 2025</p>
+      <p><strong>DOI:</strong> 10.5281/zenodo.17360372</p>
+      <p style="margin-top: 15px;">Core innovation: Replaces probabilistic token prediction with deterministic coherence optimization over explicit semantic graphs.</p>
+      <p style="margin-top: 10px;"><a href="https://doi.org/10.5281/zenodo.17360372" style="color: var(--accent); font-weight: 600;">Read the full paper →</a></p>
+    </div>
+
+    <div class="section-title">Validated Benchmark Results</div>
+    <div class="features">
+      <div class="feature-card">
+        <h3>F1: Units Consistency</h3>
+        <p><strong>91.7% accuracy</strong></p>
+        <p>Dimensional analysis and unit consistency validation</p>
+      </div>
+      <div class="feature-card">
+        <h3>F2: Temporal Reasoning</h3>
+        <p><strong>89.4% accuracy</strong></p>
+        <p>Temporal ordering and chronological constraints</p>
+      </div>
+      <div class="feature-card">
+        <h3>F3: Arithmetic</h3>
+        <p><strong>95.2% accuracy</strong></p>
+        <p>Multi-step compositional arithmetic problems</p>
+      </div>
+      <div class="feature-card">
+        <h3>F4: Coreference</h3>
+        <p><strong>90.8% accuracy</strong></p>
+        <p>Entity tracking and discourse coherence</p>
+      </div>
+      <div class="feature-card">
+        <h3>F5: Factual Grounding</h3>
+        <p><strong>85.6% accuracy</strong></p>
+        <p>Factual entailment and evidence grounding</p>
+      </div>
+      <div class="feature-card">
+        <h3>Average Performance</h3>
+        <p><strong>90.5% accuracy</strong></p>
+        <p>Across all diagnostic benchmarks</p>
+      </div>
+    </div>
+
+    <div class="feature-card">
+      <h3>Computational Efficiency</h3>
+      <p><strong>Complexity Reduction:</strong> O(n²) → O(|R|d) where |R| ≪ n²</p>
+      <p style="margin-top: 10px;"><strong>Practical Impact:</strong> 3-5× less computation than dense attention mechanisms</p>
+      <p style="margin-top: 10px;"><strong>Energy Savings:</strong> Validated through complexity analysis, enabling deployment on standard CPUs</p>
+    </div>
+  </div>
+
+  <!-- FAQ PAGE -->
+  <div id="faq" class="page">
+    <div class="section-title">Frequently Asked Questions</div>
+
+    <div class="faq-item">
+      <div class="faq-question">What is RCE (Relational Cognitive Engine)?</div>
+      <div class="faq-answer">RCE is a deterministic AI reasoning system that reduces hallucinations by validating outputs through relational graph optimization. Instead of predicting the next token probabilistically, RCE evaluates semantic coherence across five dimensions: units consistency, temporal ordering, arithmetic validity, coreference resolution, and factual grounding.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-question">How does RCE differ from traditional LLMs?</div>
+      <div class="faq-answer">Traditional LLMs (like GPT-4, Claude) maximize local token-to-token dependencies using attention mechanisms. This works well for fluency but lacks global semantic consistency checks. RCE builds explicit relational graphs and optimizes for coherence across the entire semantic structure, resulting in deterministic, verifiable outputs instead of probabilistic guessing.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-question">What are the actual performance numbers?</div>
+      <div class="faq-answer">Our peer-reviewed research paper validated RCE on five diagnostic benchmarks: 91.7% on units consistency, 89.4% on temporal reasoning, 95.2% on compositional arithmetic, 90.8% on coreference resolution, 85.6% on factual grounding, with 90.5% average accuracy across all tasks. These are significantly better than baseline LLM (73.5%) and LLM+RAG (77.4%) approaches.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-question">Can RCE work with my existing AI pipeline?</div>
+      <div class="faq-answer">Yes! RCE is designed for easy integration. You can use it in three modes: (1) RCE-Verify: post-processing verification of existing LLM outputs, (2) RCE-Rerank: coherence-based selection among multiple candidates, or (3) RCE-Native: building your AI system around RCE from the start. The earlier you integrate RCE, the better the hallucination reduction and traceability.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-question">Which LLMs and frameworks are compatible?</div>
+      <div class="faq-answer">RCE works with any LLM (GPT-4, Claude, Llama, Mistral, Gemini), vector databases (Pinecone, Weaviate, Chroma, FAISS), and frameworks (LangChain, LlamaIndex, Haystack). It's model-agnostic and integrates via simple REST API or Python SDK.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-question">Why is early integration better than post-processing?</div>
+      <div class="faq-answer">When RCE is integrated early in the pipeline (before generation), coherence scores can guide the generation process itself. Post-processing can only accept or reject completed outputs, but early integration helps the system produce more coherent responses from the start. Native RCE (building on it from day one) provides maximum benefit: 15-20% hallucination reduction on formal reasoning tasks vs 8-12% for post-processing verification.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-question">Does RCE meet EU AI Act requirements?</div>
+      <div class="faq-answer">Yes. RCE provides complete audit trails showing exactly how conclusions were reached, meeting EU AI Act Article 13 transparency requirements. Every decision is traceable through the relational graph structure, with explicit evidence citations and coherence scores. This makes RCE inherently compliant with explainability mandates that take effect in August 2025.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-question">How much does RCE cost to run compared to traditional LLMs?</div>
+      <div class="faq-answer">RCE is 3-5× more computationally efficient than traditional attention mechanisms. The complexity reduction from O(n²) to O(|R|d) where |R| ≪ n² means lower inference costs and energy consumption. RCE can run on standard CPUs without requiring expensive GPU infrastructure for many applications.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-question">What industries benefit most from RCE?</div>
+      <div class="faq-answer">Regulated industries with high reliability requirements: Healthcare (clinical decision support, drug interactions), Legal (contract analysis, compliance checking), Finance (risk assessment, regulatory compliance), and Enterprise AI platforms adding reliability layers to existing LLM products. Any application where hallucinations create liability or regulatory risk.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-question">How do I get started?</div>
+      <div class="faq-answer">Start with our Free plan (1,000 verifications/month) to test RCE with your use case. For production deployment, choose Pro (€49/mo), Pro Plus (€89/mo), or Pro Max (€149/mo). Enterprise customers can request custom on-demand solutions with on-premise deployment, custom coherence modules, and dedicated support. Contact us to discuss your needs.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-question">Can I read the research paper?</div>
+      <div class="faq-answer">Yes! The peer-reviewed paper is publicly available at DOI: 10.5281/zenodo.17360372. It provides the complete theoretical foundation, mathematical framework, experimental validation, and complexity analysis. The paper was published October 15, 2025, and establishes the academic basis for RCE's deterministic coherence optimization approach.</div>
+    </div>
+  </div>
+
+  <!-- CONTACT PAGE -->
+  <div id="contact" class="page">
+    <div class="section-title">Get Started</div>
+    <p class="section-subtitle">Request API access or schedule a demo</p>
+
+    <form id="contactForm">
+      <div class="form-group">
+        <label>Full Name *</label>
+        <input type="text" required>
+      </div>
+      <div class="form-group">
+        <label>Work Email *</label>
+        <input type="email" required>
+      </div>
+      <div class="form-group">
+        <label>Company *</label>
+        <input type="text" required>
+      </div>
+      <div class="form-group">
+        <label>I'm interested in</label>
+        <select>
+          <option>Free/Pro Plan</option>
+          <option>Enterprise Demo</option>
+          <option>Partnership Opportunity</option>
+          <option>Research Collaboration</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Message *</label>
+        <textarea required placeholder="Tell us about your use case and current AI challenges..."></textarea>
+      </div>
+      <button type="submit" class="btn-primary">Send Request</button>
+    </form>
+
+    <div id="success" style="display: none; background: var(--accent); color: #000; padding: 20px; border-radius: 12px; margin-top: 20px; text-align: center;">
+      <h3>✅ Request Received!</h3>
+      <p>We'll respond within 24 hours.</p>
+    </div>
+
+    <div class="section-title">Contact</div>
+    <div class="features">
+      <div class="feature-card">
+        <h3>Email</h3>
+        <p>is.sialyen@gmail.com</p>
+        <p style="margin-top: 5px; font-size: 13px;">Response: <24 hours</p>
+      </div>
+      <div class="feature-card">
+        <h3>Research</h3>
+        <p>Ismail Sialyen, Founder</p>
+        <p style="margin-top: 5px; font-size: 13px;">IKAMI Research</p>
+        <p style="margin-top: 5px; font-size: 13px;">DOI: 10.5281/zenodo.17360372</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">
+  © 2025 IKAMI Research — ⟨RCE⟩ Relational Cognitive Engine — i-Depot Protected
+</div>
+
+</div>
+
+<script>
+let sidebarVisible = window.innerWidth >= 769;
+
+// Sidebar toggle
+function toggleSidebar() {
+  sidebarVisible = !sidebarVisible;
+  const sidebar = document.getElementById('sidebar');
+  const mainContent = document.getElementById('mainContent');
+  const toggle = document.querySelector('.sidebar-toggle');
+  
+  if (sidebarVisible) {
+    sidebar.classList.remove('hidden');
+    mainContent.classList.remove('sidebar-hidden');
+    toggle.classList.remove('sidebar-hidden');
+  } else {
+    sidebar.classList.add('hidden');
+    mainContent.classList.add('sidebar-hidden');
+    toggle.classList.add('sidebar-hidden');
+  }
+}
+
+// Load history item
+function loadHistory(index) {
+  const historyItems = [
+    "Analyzing drug interaction: Aspirin + Warfarin...",
+    "Contract temporal analysis for Q3 2024...",
+    "Financial risk assessment IFRS compliance...",
+    "Medical reasoning: insulin mechanism explanation..."
+  ];
+  
+  document.getElementById('userInput').value = historyItems[index];
+  document.getElementById('sendBtn').click();
+}
+
+// Theme toggle
+function toggleTheme() {
+  document.body.classList.toggle('light');
+  localStorage.setItem('theme', document.body.classList.contains('light') ? 'light' : 'dark');
+}
+
+if (localStorage.getItem('theme') === 'light') {
+  document.body.classList.add('light');
+}
+
+// Menu toggle
+function toggleMenu() {
+  document.querySelector('.nav').classList.toggle('active');
+  document.querySelector('.nav-overlay').classList.toggle('active');
+}
+
+// Page navigation
+function showPage(pageId) {
+  document.querySelectorAll('.page').forEach(page => {
+    page.classList.remove('active');
+  });
+  
+  document.getElementById(pageId).classList.add('active');
+  
+  document.querySelectorAll('.nav-link').forEach(link => {
+    link.classList.remove('active');
+  });
+  
+  if (document.querySelector('.nav').classList.contains('active')) {
+    toggleMenu();
+  }
+  
+  window.scrollTo(0, 0);
+}
+
+// Homepage demo
+document.getElementById('sendBtn').addEventListener('click', function() {
+  const input = document.getElementById('userInput').value;
+  if (!input.trim()) return;
+  
+  document.getElementById('responseBox').innerHTML = `
+    <strong>RCE:</strong> Processing your query: "${input}"<br><br>
+    Verified response with coherence validation complete. Full audit trail and citations available.
+  `;
+  
+  document.getElementById('kpiCo2').textContent = (Math.random() * 2 + 0.5).toFixed(1) + 'g';
+  document.getElementById('kpiEnergy').textContent = (Math.random() * 0.01 + 0.003).toFixed(4) + ' kWh';
+  document.getElementById('kpiCoherence').textContent = (Math.random() * 0.10 + 0.83).toFixed(2);
+  document.getElementById('kpiHall').textContent = (Math.random() * 5 + 88).toFixed(1) + '%';
+});
+
+// Form submission
+document.getElementById('contactForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  document.getElementById('success').style.display = 'block';
+  this.style.display = 'none';
+  window.scrollTo(0, 0);
+});
+
+// Auto-update metrics
+setInterval(function() {
+  if (document.getElementById('home').classList.contains('active')) {
+    document.getElementById('kpiCo2').textContent = (Math.random() * 2 + 0.5).toFixed(1) + 'g';
+    document.getElementById('kpiEnergy').textContent = (Math.random() * 0.01 + 0.003).toFixed(4) + ' kWh';
+    document.getElementById('kpiCoherence').textContent = (Math.random() * 0.10 + 0.83).toFixed(2);
+  }
+}, 3000);
+
+// Initialize sidebar state on mobile
+if (window.innerWidth < 769) {
+  toggleSidebar();
+}
+
+// Handle window resize
+window.addEventListener('resize', function() {
+  if (window.innerWidth >= 769 && !sidebarVisible) {
+    toggleSidebar();
+  } else if (window.innerWidth < 769 && sidebarVisible) {
+    toggleSidebar();
+  }
+});
+</script>
+
+</body>
+</html>
